@@ -1,0 +1,5 @@
+{
+  "name": "Foody Pro",
+  "description": "Zaawansowana aplikacja webowa do tworzenia przepisów kulinarnych z wykorzystaniem AI Gemini. Pomaga odkrywać nowe smaki i planować posiłki.",
+  "requestFramePermissions": []
+}
