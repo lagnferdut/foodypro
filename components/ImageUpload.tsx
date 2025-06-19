@@ -6,9 +6,10 @@ interface ImageUploadProps {
   zdjecia: File[];
   onImageUpload: (files: FileList | null) => void;
   onImageRemove: (index: number) => void;
-  onGenerateFromImages: () => void;
+  onGenerateFromImages?: (() => void) | null; // Made optional/nullable
   isLoading: boolean;
   maxZdjec: number;
+  showGenerateButton?: boolean; // New prop
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -17,13 +18,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   onImageRemove,
   onGenerateFromImages,
   isLoading,
-  maxZdjec
+  maxZdjec,
+  showGenerateButton = true, // Default to true
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     onImageUpload(event.target.files);
-    // Reset file input to allow selecting the same file again if removed
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -67,13 +68,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               </button>
             </div>
           ))}
-          <button
-            onClick={onGenerateFromImages}
-            disabled={isLoading || zdjecia.length === 0}
-            className="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Generuj z obrazów
-          </button>
+          {showGenerateButton && onGenerateFromImages && (
+            <button
+              onClick={onGenerateFromImages}
+              disabled={isLoading || zdjecia.length === 0}
+              className="w-full mt-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Generuj z obrazów
+            </button>
+          )}
         </div>
       )}
     </OptionGroup>

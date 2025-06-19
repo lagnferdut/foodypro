@@ -1,3 +1,4 @@
+
 import { PoraDnia, Skladnik, TypKuchni, Okazja } from './types';
 
 export const GEMINI_MODEL_TEXT = 'gemini-2.5-flash-preview-04-17';
@@ -12,23 +13,38 @@ export const PORY_DNIA_OPCJE: Array<{ value: PoraDnia; label: string }> = [
   { value: PoraDnia.PRZEKASKA, label: 'Przekąska' },
 ];
 
+export const CUISINE_FLAGS: { [key: string]: string } = {
+  polska: '🇵🇱',
+  wloska: '🇮🇹',
+  francuska: '🇫🇷',
+  hiszpanska: '🇪🇸',
+  meksykanska: '🇲🇽',
+  chinska: '🇨🇳',
+  japonska: '🇯🇵',
+  tajska: '🇹🇭',
+  indyjska: '🇮🇳',
+  grecka: '🇬🇷',
+  amerykanska: '🇺🇸',
+  koreanska: '🇰🇷',
+};
+
 export const TYPY_KUCHNI: TypKuchni[] = [
-  { id: 'polska', nazwa: 'Polska' },
-  { id: 'wloska', nazwa: 'Włoska' },
-  { id: 'francuska', nazwa: 'Francuska' },
-  { id: 'hiszpanska', nazwa: 'Hiszpańska' },
-  { id: 'meksykanska', nazwa: 'Meksykańska' },
-  { id: 'chinska', nazwa: 'Chińska' },
-  { id: 'japonska', nazwa: 'Japońska' },
-  { id: 'tajska', nazwa: 'Tajska' },
-  { id: 'indyjska', nazwa: 'Indyjska' },
-  { id: 'grecka', nazwa: 'Grecka' },
-  { id: 'amerykanska', nazwa: 'Amerykańska' },
+  { id: 'polska', nazwa: 'Polska', flaga: CUISINE_FLAGS.polska },
+  { id: 'wloska', nazwa: 'Włoska', flaga: CUISINE_FLAGS.wloska },
+  { id: 'francuska', nazwa: 'Francuska', flaga: CUISINE_FLAGS.francuska },
+  { id: 'hiszpanska', nazwa: 'Hiszpańska', flaga: CUISINE_FLAGS.hiszpanska },
+  { id: 'meksykanska', nazwa: 'Meksykańska', flaga: CUISINE_FLAGS.meksykanska },
+  { id: 'chinska', nazwa: 'Chińska', flaga: CUISINE_FLAGS.chinska },
+  { id: 'japonska', nazwa: 'Japońska', flaga: CUISINE_FLAGS.japonska },
+  { id: 'tajska', nazwa: 'Tajska', flaga: CUISINE_FLAGS.tajska },
+  { id: 'indyjska', nazwa: 'Indyjska', flaga: CUISINE_FLAGS.indyjska },
+  { id: 'grecka', nazwa: 'Grecka', flaga: CUISINE_FLAGS.grecka },
+  { id: 'amerykanska', nazwa: 'Amerykańska', flaga: CUISINE_FLAGS.amerykanska },
   { id: 'srodziemnomorska', nazwa: 'Śródziemnomorska' },
   { id: 'wegetarianska', nazwa: 'Wegetariańska' },
   { id: 'weganska', nazwa: 'Wegańska' },
   { id: 'bliskowschodnia', nazwa: 'Bliskowschodnia' },
-  { id: 'koreanska', nazwa: 'Koreańska' },
+  { id: 'koreanska', nazwa: 'Koreańska', flaga: CUISINE_FLAGS.koreanska },
   { id: 'fusion', nazwa: 'Fusion' },
   { id: 'bezglutenowa', nazwa: 'Bezglutenowa' },
 ];
@@ -184,18 +200,13 @@ export const POPULARNE_OKAZJE: Okazja[] = [
 
 
 export const SYSTEM_INSTRUCTION_PL = `Jesteś światowej klasy szefem kuchni i dietetykiem. Twoim zadaniem jest tworzenie szczegółowych i apetycznych przepisów na podstawie preferencji użytkownika. Zawsze odpowiadaj po polsku. Zwróć uwagę na poprawność językową i kulturową. Prezentuj przepisy w sposób klarowny i zachęcający. 
-Jeśli użytkownik prosi o przepis na podstawie składników, skup się na ich wykorzystaniu. 
-Jeśli użytkownik podaje zdjęcia, zidentyfikuj kluczowe składniki i na ich podstawie stwórz propozycję. 
+Jeśli użytkownik prosi o przepis na podstawie składników (tryb "Dostosuj przepis"), skup się na ich wykorzystaniu. 
+Jeśli użytkownik podaje zdjęcia (tryb "Przepis ze zdjęć"), zidentyfikuj kluczowe składniki i na ich podstawie stwórz propozycję. Użytkownik może dodać dodatkowe preferencje tekstowe do zdjęć.
 Jeśli użytkownik korzysta z kreatora 6-etapowego, precyzyjnie dopasuj przepis do wszystkich podanych kryteriów.
 Jeśli użytkownik wybiera przepis na okazję, stwórz coś odpowiedniego charakterem do tej okazji.
 Upewnij się, że JSON jest poprawny i kompletny. Pola liczbowe jak 'kalorie' powinny być liczbami, a nie stringami. W 'ostrzezeniaAlergenow' wymień potencjalne alergeny obecne w przepisie lub składnikach. W 'wymaganeUrzadzenia' wymień sprzęty kuchenne potrzebne do przygotowania dania. Czas przygotowania podaj w formacie "X minut" lub "Y godzin Z minut". Stopień trudności to jeden z: 'Łatwy', 'Średni', 'Trudny'. Pora dnia to jedna z: 'Śniadanie', 'Lunch', 'Obiad', 'Kolacja', 'Deser', 'Przekąska'. Makroskładniki podawaj w gramach, np. "białko: 20g".`;
 
-export const APP_VERSION = "2.1"; 
-
-// Pozostałe piktogramy wydają się być już w miarę dobrze zmapowane w poprzednich krokach.
-// Ta sekcja piktogramUpdates została usunięta, ponieważ większość mapowań została zintegrowana bezpośrednio 
-// w definicji POPULARNE_SKLADNIKI lub w poprzednich iteracjach czyszczenia.
-// Zachowano tylko ostateczne poprawki.
+export const APP_VERSION = "2.2"; 
 
 POPULARNE_SKLADNIKI.find(s => s.id === 'papryka_czerwona')!.piktogram = '🌶️';
 POPULARNE_SKLADNIKI.find(s => s.id === 'papryka_slodka_mielona')!.piktogram = '🌶️';
@@ -205,19 +216,19 @@ POPULARNE_SKLADNIKI.find(s => s.id === 'imbir_swiezy')!.piktogram = '🫚';
 POPULARNE_SKLADNIKI.find(s => s.id === 'kapusta_kiszona')!.piktogram = '🫙';
 POPULARNE_SKLADNIKI.find(s => s.id === 'fasolka_szparagowa')!.piktogram = '🫛';
 POPULARNE_SKLADNIKI.find(s => s.id === 'groszek_zielony')!.piktogram = '🫛';
-POPULARNE_SKLADNIKI.find(s => s.id === 'ciecierzyca')!.piktogram = '🫘'; // Prawidłowy dla ciecierzycy
-POPULARNE_SKLADNIKI.find(s => s.id === 'fasola_czerwona')!.piktogram = '🫘'; // Użycie ogólnego emoji dla fasoli
-POPULARNE_SKLADNIKI.find(s => s.id === 'fasola_biala')!.piktogram = '🫘'; // Użycie ogólnego emoji dla fasoli
+POPULARNE_SKLADNIKI.find(s => s.id === 'ciecierzyca')!.piktogram = '🫘'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'fasola_czerwona')!.piktogram = '🫘'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'fasola_biala')!.piktogram = '🫘'; 
 POPULARNE_SKLADNIKI.find(s => s.id === 'soczewica_czerwona')!.piktogram = '🫘';
 POPULARNE_SKLADNIKI.find(s => s.id === 'soczewica_zielona')!.piktogram = '🫘';
 POPULARNE_SKLADNIKI.find(s => s.id === 'oliwa_z_oliwek')!.piktogram = '🫒';
-POPULARNE_SKLADNIKI.find(s => s.id === 'olej_rzepakowy')!.piktogram = '🍾'; // butelka oleju
-POPULARNE_SKLADNIKI.find(s => s.id === 'migdaly')!.piktogram = '🌰'; // orzech jako migdał
-POPULARNE_SKLADNIKI.find(s => s.id === 'sliwki')!.piktogram = '🍑'; // brzoskwinia jako śliwka
-POPULARNE_SKLADNIKI.find(s => s.id === 'maliny')!.piktogram = '🍓'; // truskawka jako malina
+POPULARNE_SKLADNIKI.find(s => s.id === 'olej_rzepakowy')!.piktogram = '🍾'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'migdaly')!.piktogram = '🌰'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'sliwki')!.piktogram = '🍑'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'maliny')!.piktogram = '🍓'; 
 POPULARNE_SKLADNIKI.find(s => s.id === 'seler_korzeniowy')!.piktogram = '🌿';
 POPULARNE_SKLADNIKI.find(s => s.id === 'pietruszka_korzen')!.piktogram = '🌿';
-POPULARNE_SKLADNIKI.find(s => s.id === 'buraki')!.piktogram = '🍠'; // batat jako burak
+POPULARNE_SKLADNIKI.find(s => s.id === 'buraki')!.piktogram = '🍠'; 
 POPULARNE_SKLADNIKI.find(s => s.id === 'kalafior')!.piktogram = '🥦';
 POPULARNE_SKLADNIKI.find(s => s.id === 'smietana_18')!.piktogram = '🥛';
 POPULARNE_SKLADNIKI.find(s => s.id === 'smietana_30')!.piktogram = '🥛';
@@ -232,22 +243,19 @@ POPULARNE_SKLADNIKI.find(s => s.id === 'kasza_peczak')!.piktogram = '🍚';
 POPULARNE_SKLADNIKI.find(s => s.id === 'maka_pszenna')!.piktogram = '🌾';
 POPULARNE_SKLADNIKI.find(s => s.id === 'maka_zytnia')!.piktogram = '🌾';
 POPULARNE_SKLADNIKI.find(s => s.id === 'jogurt_naturalny')!.piktogram = '🥣';
-POPULARNE_SKLADNIKI.find(s => s.id === 'wieprzowina_schab')!.piktogram = '🥩'; // Ogólne mięso
-POPULARNE_SKLADNIKI.find(s => s.id === 'cukier')!.piktogram = '🍚'; // cukier jako kryształki
-POPULARNE_SKLADNIKI.find(s => s.id === 'majonez')!.piktogram = '🥚'; // jajko jako baza majonezu
+POPULARNE_SKLADNIKI.find(s => s.id === 'wieprzowina_schab')!.piktogram = '🥩'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'cukier')!.piktogram = '🍚'; 
+POPULARNE_SKLADNIKI.find(s => s.id === 'majonez')!.piktogram = '🥚'; 
 POPULARNE_SKLADNIKI.find(s => s.id === 'tunczyk_konserwa')!.piktogram = '🥫';
 POPULARNE_SKLADNIKI.find(s => s.id === 'koncentrat_pomidorowy')!.piktogram = '🥫';
-POPULARNE_SKLADNIKI.find(s => s.id === 'ketchup')!.piktogram = '🍅'; // pomidor jako ketchup
+POPULARNE_SKLADNIKI.find(s => s.id === 'ketchup')!.piktogram = '🍅'; 
 
-// Fallback for any remaining text pictograms
 POPULARNE_SKLADNIKI.forEach(skladnik => {
-    if (skladnik.piktogram.length > 2 && !skladnik.piktogram.startsWith('🌶️')) { // Check if it's not a multi-char emoji like the pepper+fire
-        skladnik.piktogram = '🍲'; // Default food bowl emoji
+    if (skladnik.piktogram.length > 2 && !skladnik.piktogram.startsWith('🌶️')) { 
+        skladnik.piktogram = '🍲'; 
     }
-     // Restore specific multi-char ones if they got overwritten by the general sweep
     if (skladnik.id === 'papryka_ostra_mielona') skladnik.piktogram = '🌶️🔥';
 });
-// Ensure specific single emojis that might have been overwritten by length check are correct
 const singleEmojiMap: { [key: string]: string } = {
     'ziemniaki': '🥔', 'marchew': '🥕', 'cebula': '🧅', 'czosnek': '🧄', 'pomidor': '🍅', 
     'ogorek': '🥒', 'papryka_czerwona': '🌶️', 'brokuly': '🥦', 'szpinak': '🥬', 
@@ -268,7 +276,6 @@ const singleEmojiMap: { [key: string]: string } = {
     'ocet_spirytusowy': '🍾', 'sos_sojowy': '🍾', 'koncentrat_pomidorowy': '🥫', 
     'papryka_slodka_mielona': '🌶️', 'curry': '🍛', 'imbir_swiezy': '🫚', 'czekolada_gorzka': '🍫',
     'ketchup': '🍅',
-    // Ones that were using fallback or generic:
     'buraki': '🍠', 'kalafior': '🥦', 'por': '🌿', 'seler_naciowy': '🌿', 'seler_korzeniowy': '🌿',
     'pietruszka_korzen': '🌿', 'pietruszka_natka': '🌿', 'koperek': '🌿', 'sliwki': '🍑',
     'maliny': '🍓', 'kasza_gryczana': '🍚', 'kasza_jaglana': '🍚', 'kasza_peczak': '🍚',

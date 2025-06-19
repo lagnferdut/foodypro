@@ -13,7 +13,7 @@ export interface Recipe {
   ostrzezeniaAlergenow: string[];
   instrukcje: string;
   skladnikiKalorie?: Array<{ nazwa: string; kalorie: number; porcja: string }>;
-  aiGeneratedImageBase64?: string;
+  aiGeneratedImageBase64?: string | null; // Allow null for explicit empty state
 }
 
 export enum PoraDnia {
@@ -34,6 +34,7 @@ export interface Skladnik {
 export interface TypKuchni {
   id: string;
   nazwa: string;
+  flaga?: string; // Opcjonalna flaga emoji
 }
 
 export interface Okazja {
@@ -43,12 +44,12 @@ export interface Okazja {
 
 export interface OpcjeZaawansowane {
   poraDnia?: PoraDnia;
-  typKuchni?: string; // Wybrany finalnie typ kuchni
-  typKuchniQuery: string; // Tekst wpisywany przez użytkownika do pola Typ Kuchni (dla sugestii)
+  typKuchni?: string; 
+  typKuchniQuery: string; 
   minKalorie: number;
   maxKalorie: number;
   wybraneSkladniki: Skladnik[];
-  zdjecia: File[];
+  zdjecia: File[]; // To pole będzie teraz głównie używane przez nowy tryb "Przepis ze zdjęć"
 }
 
 export interface KrokKreatora {
@@ -80,4 +81,4 @@ export interface GroundingChunk {
   };
 }
 
-export type RecipeGenerationPath = 'main_search' | 'detailed_filters' | 'wizard' | 'occasion';
+export type RecipeGenerationPath = 'main_search' | 'detailed_filters' | 'wizard' | 'occasion' | 'photo_upload';
