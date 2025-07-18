@@ -9,6 +9,7 @@ import { Footer } from './components/Footer';
 import { RecipeWizardModal } from './components/RecipeWizardModal';
 import { PathSelector } from './components/PathSelector';
 import { OccasionMode } from './components/OccasionMode';
+import { PhotoUploadMode } from './components/PhotoUploadMode';
 import { generateRecipePrompt, generateRecipeFromWizardPrompt, generateRecipeFromImagesPrompt, generateSuggestionsPrompt, generateKitchenTypeSuggestionsPrompt, generateRecipeFromOccasionPrompt } from './services/promptService';
 import { GeminiService } from './services/geminiService';
 
@@ -16,8 +17,8 @@ const App = (): JSX.Element => {
   const [zapytanie, setZapytanie] = useState<string>('');
   const [przepisy, setPrzepisy] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isSuggesting, setIsSuggesting] = useState<boolean>(false); // For main search suggestions
-  const [isKitchenSuggesting, setIsKitchenSuggesting] = useState<boolean>(false); // For kitchen type suggestions
+  const [isSuggesting, setIsSuggesting] = useState<boolean>(false); 
+  const [isKitchenSuggesting, setIsKitchenSuggesting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [statusWiadomosc, setStatusWiadomosc] = useState<string>('Gotowy do działania!');
   
@@ -27,9 +28,10 @@ const App = (): JSX.Element => {
     minKalorie: 0,
     maxKalorie: 2000,
     wybraneSkladniki: [],
-    zdjecia: [],
+    zdjecia: [], 
     typKuchniQuery: '', 
   });
+  const [uploadedPhotosForMode, setUploadedPhotosForMode] = useState<File[]>([]); 
   const [selectedOccasion, setSelectedOccasion] = useState<Okazja | null>(null);
 
   const [isDetailedFiltersPanelOpen, setIsDetailedFiltersPanelOpen] = useState<boolean>(false);
@@ -54,11 +56,11 @@ const App = (): JSX.Element => {
     }
   }, []);
 
-  const clearPreviousResults = () => {
+  const clearPreviousResults = useCallback(() => {
     setPrzepisy([]);
     setGroundingChunks([]);
     setError(null);
-  };
+  }, []);
 
   const handleAdvancedOptionChange = useCallback(<K extends keyof OpcjeZaawansowane>(option: K, value: OpcjeZaawansowane[K]) => {
     setOpcjeZaawansowane(prev => ({ ...prev, [option]: value }));
@@ -87,7 +89,7 @@ const App = (): JSX.Element => {
         setError('Nie udało się wygenerować przepisów.');
       } else {
         setPrzepisy(fetchedRecipes);
-        setStatusWiadomosc(`Znaleziono ${fetchedRecipes.length} przepisów! Smacznego! 🍽️`);
+        setStatusWiadomosc(`Twoje wygenerowane przepisy: ${fetchedRecipes.length}.`);
       }
       if (groundingMetadata) setGroundingChunks(groundingMetadata);
     } catch (e: any) {
@@ -97,18 +99,21 @@ const App = (): JSX.Element => {
     } finally {
       setIsLoading(false);
     }
-  }, [geminiServiceInstance]);
+  }, [geminiServiceInstance, clearPreviousResults]);
 
   const fetchKitchenTypeSuggestions = useCallback(async (query: string) => {
-    if (!geminiServiceInstance || query.length < 1) {
+    if (query.length < 1) {
       setKitchenTypeSuggestions([]);
       return;
     }
     setIsKitchenSuggesting(true);
-    const filtered = TYPY_KUCHNI.filter(k => k.nazwa.toLowerCase().includes(query.toLowerCase()));
+    const filtered = TYPY_KUCHNI.filter(k => 
+      k.nazwa.toLowerCase().includes(query.toLowerCase()) || 
+      (k.flaga && k.flaga.includes(query)) 
+    );
     setKitchenTypeSuggestions(filtered);
     setIsKitchenSuggesting(false);
-  }, [geminiServiceInstance]);
+  }, []);
 
   const handleKitchenQueryChange = (query: string) => {
     handleAdvancedOptionChange('typKuchniQuery', query);
@@ -122,7 +127,7 @@ const App = (): JSX.Element => {
 
   const handleKitchenSuggestionClick = (kitchen: TypKuchni) => {
     handleAdvancedOptionChange('typKuchni', kitchen.id);
-    handleAdvancedOptionChange('typKuchniQuery', kitchen.nazwa); 
+    handleAdvancedOptionChange('typKuchniQuery', `${kitchen.flaga ? kitchen.flaga + ' ' : ''}${kitchen.nazwa}`); 
     setKitchenTypeSuggestions([]);
   };
 
@@ -132,6 +137,7 @@ const App = (): JSX.Element => {
       setError('Wpisz na co masz ochotę.');
       return;
     }
+    setSearchSuggestions([]); 
     const prompt = generateRecipePrompt(queryToUse, {}); 
     performGeneration(prompt, "wyszukiwanie główne");
   };
@@ -170,14 +176,67 @@ const App = (): JSX.Element => {
     handleSearchFromMainQuery(suggestion);
   };
 
+  const handleGenerateFromImagesForDetailedFilters = useCallback(async () => {
+    if (!geminiServiceInstance) {
+      setError("Serwis Gemini nie jest zainicjalizowany.");
+      return;
+    }
+    const currentPhotos = opcjeZaawansowane.zdjecia || [];
+    if (currentPhotos.length === 0) {
+      // This case should be handled by handleGenerateFromDetailedFilters if no specific button for images is pressed
+      // setError("Dodaj przynajmniej jedno zdjęcie w panelu filtrów, aby wygenerować przepis z obrazów.");
+      return;
+    }
+    setIsLoading(true);
+    clearPreviousResults();
+    setStatusWiadomosc('Analizowanie zdjęć z panelu filtrów i generowanie przepisu... 📸🍲');
+    
+    try {
+      const base64Images = await Promise.all(
+        currentPhotos.map(file => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = error => reject(error);
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+      
+      const prompt = generateRecipeFromImagesPrompt(opcjeZaawansowane);
+      const { recipes: fetchedRecipes, groundingMetadata } = await geminiServiceInstance.generateRecipesFromImages(prompt, base64Images, SYSTEM_INSTRUCTION_PL);
+
+      if (fetchedRecipes.length === 0) {
+        setStatusWiadomosc('Nie udało się rozpoznać składników lub wygenerować przepisu ze zdjęć (panel filtrów). 🤔');
+         setError('Nie udało się wygenerować przepisów na podstawie zdjęć z panelu filtrów.');
+      } else {
+        setPrzepisy(fetchedRecipes);
+        setStatusWiadomosc(`Twoje wygenerowane przepisy (z obrazów panelu filtrów): ${fetchedRecipes.length}.`);
+      }
+       if (groundingMetadata) setGroundingChunks(groundingMetadata);
+    } catch (e: any) {
+      console.error("Błąd podczas generowania przepisu ze zdjęć (panel filtrów):", e);
+      setError(`Wystąpił błąd podczas przetwarzania zdjęć (panel filtrów): ${e.message}.`);
+      setStatusWiadomosc('Coś poszło nie tak przy analizie zdjęć (panel filtrów)... 😥');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [opcjeZaawansowane, geminiServiceInstance, clearPreviousResults]);
+
   const handleGenerateFromDetailedFilters = useCallback(() => {
-    if (opcjeZaawansowane.wybraneSkladniki.length === 0 && !opcjeZaawansowane.poraDnia && !opcjeZaawansowane.typKuchni && !zapytanie) {
-       setError('Wybierz przynajmniej jeden filtr lub wpisz zapytanie, aby użyć filtrów szczegółowych.');
+    if (opcjeZaawansowane.wybraneSkladniki.length === 0 && !opcjeZaawansowane.poraDnia && !opcjeZaawansowane.typKuchni && !zapytanie && opcjeZaawansowane.zdjecia.length === 0) {
+       setError('Wybierz przynajmniej jeden filtr, wpisz zapytanie lub dodaj zdjęcia, aby użyć filtrów szczegółowych.');
        return;
+    }
+    // If photos are present in detailed filters, use the image generation logic for them.
+    if(opcjeZaawansowane.zdjecia.length > 0) {
+      handleGenerateFromImagesForDetailedFilters();
+      return;
     }
     const prompt = generateRecipePrompt(zapytanie, opcjeZaawansowane);
     performGeneration(prompt, "filtry szczegółowe");
-  }, [opcjeZaawansowane, zapytanie, performGeneration]);
+  }, [opcjeZaawansowane, zapytanie, performGeneration, handleGenerateFromImagesForDetailedFilters]);
+
 
   const handleIngredientToggle = useCallback((skladnik: Skladnik) => {
     setOpcjeZaawansowane(prev => {
@@ -193,29 +252,23 @@ const App = (): JSX.Element => {
     });
   }, []);
 
-  const handleImageUpload = useCallback((files: FileList | null) => {
+  const handlePhotoUploadForMode = useCallback((files: FileList | null) => {
     if (files) {
-      const newFiles = Array.from(files).slice(0, MAKSYMALNA_LICZBA_ZDJEC - opcjeZaawansowane.zdjecia.length);
-      setOpcjeZaawansowane(prev => ({
-        ...prev,
-        zdjecia: [...prev.zdjecia, ...newFiles].slice(0, MAKSYMALNA_LICZBA_ZDJEC)
-      }));
+      const newFiles = Array.from(files).slice(0, MAKSYMALNA_LICZBA_ZDJEC - uploadedPhotosForMode.length);
+      setUploadedPhotosForMode(prev => [...prev, ...newFiles].slice(0, MAKSYMALNA_LICZBA_ZDJEC));
     }
-  }, [opcjeZaawansowane.zdjecia.length]);
+  }, [uploadedPhotosForMode.length]);
 
-  const handleImageRemove = useCallback((index: number) => {
-    setOpcjeZaawansowane(prev => ({
-      ...prev,
-      zdjecia: prev.zdjecia.filter((_, i) => i !== index)
-    }));
+  const handlePhotoRemoveForMode = useCallback((index: number) => {
+    setUploadedPhotosForMode(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleGenerateFromImages = useCallback(async () => {
+  const handleGenerateFromPhotosMode = useCallback(async () => {
      if (!geminiServiceInstance) {
       setError("Serwis Gemini nie jest zainicjalizowany.");
       return;
     }
-    if (opcjeZaawansowane.zdjecia.length === 0) {
+    if (uploadedPhotosForMode.length === 0) {
       setError("Dodaj przynajmniej jedno zdjęcie, aby wygenerować przepis.");
       return;
     }
@@ -225,7 +278,7 @@ const App = (): JSX.Element => {
     
     try {
       const base64Images = await Promise.all(
-        opcjeZaawansowane.zdjecia.map(file => {
+        uploadedPhotosForMode.map(file => {
           return new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve((reader.result as string).split(',')[1]);
@@ -234,7 +287,7 @@ const App = (): JSX.Element => {
           });
         })
       );
-
+      
       const prompt = generateRecipeFromImagesPrompt(opcjeZaawansowane); 
       const { recipes: fetchedRecipes, groundingMetadata } = await geminiServiceInstance.generateRecipesFromImages(prompt, base64Images, SYSTEM_INSTRUCTION_PL);
 
@@ -243,7 +296,7 @@ const App = (): JSX.Element => {
          setError('Nie udało się wygenerować przepisów na podstawie zdjęć.');
       } else {
         setPrzepisy(fetchedRecipes);
-        setStatusWiadomosc(`Przepis na podstawie zdjęć gotowy! Smacznego! 🍽️`);
+        setStatusWiadomosc(`Twoje wygenerowane przepisy: ${fetchedRecipes.length}.`);
       }
        if (groundingMetadata) setGroundingChunks(groundingMetadata);
     } catch (e: any) {
@@ -253,7 +306,25 @@ const App = (): JSX.Element => {
     } finally {
       setIsLoading(false);
     }
-  }, [opcjeZaawansowane, geminiServiceInstance]);
+  }, [uploadedPhotosForMode, geminiServiceInstance, opcjeZaawansowane, clearPreviousResults]);
+
+  const handlePhotoUploadForDetailedFilters = useCallback((files: FileList | null) => {
+    if (files) {
+      const currentPhotos = opcjeZaawansowane.zdjecia || [];
+      const newFiles = Array.from(files).slice(0, MAKSYMALNA_LICZBA_ZDJEC - currentPhotos.length);
+      setOpcjeZaawansowane(prev => ({
+        ...prev,
+        zdjecia: [...currentPhotos, ...newFiles].slice(0, MAKSYMALNA_LICZBA_ZDJEC)
+      }));
+    }
+  }, [opcjeZaawansowane.zdjecia]);
+
+  const handlePhotoRemoveForDetailedFilters = useCallback((index: number) => {
+    setOpcjeZaawansowane(prev => ({
+      ...prev,
+      zdjecia: (prev.zdjecia || []).filter((_, i) => i !== index)
+    }));
+  }, []);
 
   const handleWizardSubmit = useCallback(async (dane: DaneKreatora) => {
     setIsWizardOpen(false);
@@ -269,7 +340,6 @@ const App = (): JSX.Element => {
     const prompt = generateRecipeFromOccasionPrompt(selectedOccasion.nazwa, opcjeZaawansowane); 
     performGeneration(prompt, `okazja: ${selectedOccasion.nazwa}`);
   }, [selectedOccasion, opcjeZaawansowane, performGeneration]);
-
 
   const renderActivePathContent = () => {
     switch (currentPath) {
@@ -297,15 +367,23 @@ const App = (): JSX.Element => {
             isLoading={isLoading}
           />
         );
+      case 'photo_upload':
+        return (
+          <PhotoUploadMode
+            zdjecia={uploadedPhotosForMode}
+            onImageUpload={handlePhotoUploadForMode}
+            onImageRemove={handlePhotoRemoveForMode}
+            onGenerate={handleGenerateFromPhotosMode}
+            isLoading={isLoading}
+            maxZdjec={MAKSYMALNA_LICZBA_ZDJEC}
+          />
+        );
       case 'main_search':
       case 'detailed_filters':
       default:
-        // UI dla 'main_search' jest w MainContent.
-        // UI dla 'detailed_filters' to panel boczny, a MainContent wyświetli odpowiedni komunikat.
         return null; 
     }
   };
-
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-900 text-white relative"> 
@@ -317,29 +395,33 @@ const App = (): JSX.Element => {
               Foody Pro
             </h1>
           </div>
-          <button 
-            onClick={() => setIsDetailedFiltersPanelOpen(!isDetailedFiltersPanelOpen)} 
-            className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
-            aria-label="Otwórz menu filtrów"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          </button>
+          { currentPath === 'detailed_filters' && ( 
+            <button 
+                onClick={() => setIsDetailedFiltersPanelOpen(!isDetailedFiltersPanelOpen)} 
+                className="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
+                aria-label="Otwórz menu filtrów"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+            </button>
+          )}
         </div>
       </header>
       
       <div className="container mx-auto mt-2">
          <PathSelector currentPath={currentPath} setCurrentPath={(path) => {
            setCurrentPath(path);
-           setIsDetailedFiltersPanelOpen(path === 'detailed_filters'); 
+           setIsDetailedFiltersPanelOpen(path === 'detailed_filters' && window.innerWidth >= 768); // Open on desktop for detailed_filters
            if (path !== 'occasion') setSelectedOccasion(null);
            if (path !== 'main_search') setZapytanie(''); 
-           clearPreviousResults();
+           if (path !== 'photo_upload') setUploadedPhotosForMode([]);
+           setOpcjeZaawansowane(prev => ({...prev, zdjecia: []})); // Clear photos from detailed_filters too
+           clearPreviousResults(); 
          }} />
       </div>
 
-      <div className={`flex flex-1 container mx-auto mt-1 pb-4 ${currentPath === 'detailed_filters' ? 'md:space-x-4' : ''}`}>
+      <div className={`flex flex-1 container mx-auto mt-1 pb-4 ${currentPath === 'detailed_filters' ? 'md:flex-row' : 'md:flex-col'}`}>
         {currentPath === 'detailed_filters' && (
              <DetailedFiltersPanel
                 isOpen={isDetailedFiltersPanelOpen}
@@ -348,25 +430,25 @@ const App = (): JSX.Element => {
                 onOptionChange={handleAdvancedOptionChange}
                 wszystkieSkladniki={POPULARNE_SKLADNIKI}
                 onIngredientToggle={handleIngredientToggle}
-                onImageUpload={handleImageUpload}
-                onImageRemove={handleImageRemove}
-                onGenerateFromImages={handleGenerateFromImages} 
                 isLoading={isLoading}
                 maxSkladnikow={MAKSYMALNA_LICZBA_SKLADNIKOW}
-                maxZdjec={MAKSYMALNA_LICZBA_ZDJEC}
                 poryDniaOpcje={PORY_DNIA_OPCJE}
-                typyKuchniOpcje={TYPY_KUCHNI}
+                typyKuchniOpcje={TYPY_KUCHNI} 
                 kitchenTypeSuggestions={kitchenTypeSuggestions}
                 onKitchenQueryChange={handleKitchenQueryChange}
                 onKitchenSuggestionClick={handleKitchenSuggestionClick}
                 isKitchenSuggesting={isKitchenSuggesting}
                 onGenerate={handleGenerateFromDetailedFilters}
+                onImageUpload={handlePhotoUploadForDetailedFilters}
+                onImageRemove={handlePhotoRemoveForDetailedFilters}
+                onGenerateFromImages={handleGenerateFromImagesForDetailedFilters}
+                maxZdjec={MAKSYMALNA_LICZBA_ZDJEC}
              />
         )}
         <MainContent
           zapytanie={zapytanie}
           setZapytanie={handleZapytanieChange}
-          onSearch={() => handleSearchFromMainQuery()} 
+          onSearch={handleSearchFromMainQuery} 
           przepisy={przepisy}
           isLoading={isLoading}
           error={error}
